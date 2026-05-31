@@ -612,7 +612,6 @@
                     battlenetId: $('#battlenetId').value.trim(),
                     members: [{ uid, nickname: u.nickname, rank: u.rank, roles: u.roles||[] }],
                     notes: $('#notes').value.trim(),
-                    createdAt: Date.now(),
                     expiresAt: Date.now() + parseInt($('#duration').value)*60000
                 };
                 try {
