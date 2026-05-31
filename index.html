@@ -31,7 +31,6 @@
             --warning: #f0a840;
             --radius: 12px;
             --radius-sm: 8px;
-            --radius-xs: 6px;
             --shadow: 0 4px 20px rgba(0,0,0,0.35);
             --shadow-sm: 0 2px 8px rgba(0,0,0,0.25);
             --transition: 0.2s cubic-bezier(0.4,0,0.2,1);
@@ -70,7 +69,7 @@
             display:flex; align-items:center; justify-content:center;
             font-size:22px; flex-shrink:0; box-shadow:0 2px 12px var(--ow-orange-glow);
         }
-        .header-title { font-size:18px; font-weight:700; letter-spacing:0.5px; color:#fff; }
+        .header-title { font-size:18px; font-weight:700; color:#fff; }
         .header-subtitle { font-size:11px; color:var(--text-muted); margin-top:-2px; }
         .header-actions { margin-left:auto; display:flex; gap:6px; }
         .btn-icon {
@@ -119,9 +118,9 @@
             padding:7px 13px; border-radius:20px; border:1px solid var(--border);
             background:var(--bg-card); color:var(--text-secondary); font-size:12px;
             cursor:pointer; font-weight:500; transition:all var(--transition);
-            white-space:nowrap; letter-spacing:0.3px; font-family:inherit;
+            white-space:nowrap; font-family:inherit;
         }
-        .filter-chip.active, .filter-rank-select:focus { background:var(--ow-orange); border-color:var(--ow-orange); color:#1a1a2e; font-weight:700; }
+        .filter-chip.active { background:var(--ow-orange); border-color:var(--ow-orange); color:#1a1a2e; font-weight:700; }
         .filter-chip.role-tank.active { background:var(--tank); border-color:var(--tank); }
         .filter-chip.role-dps.active { background:var(--dps); border-color:var(--dps); }
         .filter-chip.role-support.active { background:var(--support); border-color:var(--support); }
@@ -148,17 +147,17 @@
         .role-badge.tank { background:var(--tank-bg); color:#6db3f0; }
         .role-badge.dps { background:var(--dps-bg); color:#f07070; }
         .role-badge.support { background:var(--support-bg); color:#6cc96c; }
-        .card-footer { display:flex; align-items:center; justify-content:space-between; gap:10px; }
-        .progress-wrap { flex:1; display:flex; align-items:center; gap:8px; }
+        .card-footer { display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap; }
+        .progress-wrap { flex:1; display:flex; align-items:center; gap:8px; min-width:100px; }
         .progress-bar { flex:1; height:6px; background:var(--bg-input); border-radius:3px; overflow:hidden; }
         .progress-fill { height:100%; border-radius:3px; background:var(--ow-orange); transition:width 0.4s; }
         .progress-fill.full { background:var(--success); }
-        .progress-text { font-size:11px; font-weight:600; color:var(--text-secondary); white-space:nowrap; min-width:32px; text-align:right; }
+        .progress-text { font-size:11px; font-weight:600; color:var(--text-secondary); white-space:nowrap; }
         .time-left { font-size:10px; color:var(--text-muted); white-space:nowrap; }
         .time-left.urgent { color:#e05555; animation:pulse 1.5s infinite; }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
         .btn-join {
-            padding:8px 16px; border-radius:20px; border:none; background:var(--ow-orange);
+            padding:6px 14px; border-radius:20px; border:none; background:var(--ow-orange);
             color:#1a1a2e; font-weight:700; font-size:12px; cursor:pointer;
             white-space:nowrap; letter-spacing:0.4px; box-shadow:0 2px 8px var(--ow-orange-glow);
         }
@@ -168,6 +167,13 @@
             background:transparent; color:var(--text-secondary); cursor:pointer;
             font-size:11px; transition:all var(--transition);
         }
+        .btn-delete {
+            padding:6px 10px; border-radius:16px; border:1px solid var(--danger);
+            background:rgba(224,85,85,0.15); color:var(--danger); cursor:pointer;
+            font-size:11px; font-weight:600; transition:all var(--transition);
+            white-space:nowrap;
+        }
+        .btn-delete:active { background:rgba(224,85,85,0.3); }
         .empty-state { text-align:center; padding:40px 20px; color:var(--text-muted); }
         .empty-state .icon { font-size:48px; margin-bottom:12px; opacity:0.6; }
         .modal-overlay {
@@ -187,7 +193,7 @@
         .modal-handle { width:36px; height:4px; background:var(--border); border-radius:2px; margin:0 auto 16px; }
         .modal-title { font-size:17px; font-weight:700; color:#fff; text-align:center; margin-bottom:18px; }
         .form-group { margin-bottom:14px; }
-        .form-label { display:block; font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:5px; text-transform:uppercase; }
+        .form-label { display:block; font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:5px; }
         .form-input, .form-select, .form-textarea {
             width:100%; padding:11px 14px; border-radius:var(--radius-sm); border:1px solid var(--border);
             background:var(--bg-input); color:#fff; font-size:14px; font-family:inherit; outline:none;
@@ -403,7 +409,6 @@
             });
         }
 
-        // 渲染
         function renderAll() {
             renderTeamLists();
             updateTabVisibility();
@@ -412,7 +417,7 @@
         function getFilteredTeams() {
             let teams = [...allTeams];
             const now = Date.now();
-            teams = teams.filter(t => t.expiresAt > now); // 只显示未过期
+            teams = teams.filter(t => t.expiresAt > now);
             if (filterRank) {
                 const val = parseInt(filterRank);
                 teams = teams.filter(t => t.minRank <= val && t.maxRank >= val);
@@ -460,14 +465,27 @@
                 membersHTML += `<span class="member-chip" style="cursor:pointer;color:var(--ow-orange);">+${team.members.length-3} 更多</span>`;
             }
 
-            let actionBtn = '';
+            let actionHTML = '';
             if (isMyView) {
-                if (isCreator) actionBtn = `<button class="btn-join joined" disabled>👑 我的车队</button>`;
-                else if (hasJoined) actionBtn = `<button class="btn-join joined" data-action="leave">✓ 已加入</button>`;
+                if (isCreator) {
+                    actionHTML = `<button class="btn-join joined" disabled style="margin-right:4px;">👑 我的车队</button>`;
+                } else if (hasJoined) {
+                    actionHTML = `<button class="btn-join joined" data-action="leave">✓ 已加入</button>`;
+                }
             } else {
-                if (hasJoined) actionBtn = `<button class="btn-join joined" data-action="leave">✓ 已加入</button>`;
-                else if (team.members.length >= team.maxPlayers) actionBtn = `<button class="btn-join" disabled>已满员</button>`;
-                else actionBtn = `<button class="btn-join" data-action="join">加入车队</button>`;
+                if (hasJoined) {
+                    actionHTML = `<button class="btn-join joined" data-action="leave">✓ 已加入</button>`;
+                } else if (team.members.length >= team.maxPlayers) {
+                    actionHTML = `<button class="btn-join" disabled>已满员</button>`;
+                } else {
+                    actionHTML = `<button class="btn-join" data-action="join">加入车队</button>`;
+                }
+            }
+
+            // 删除按钮（仅创建者可见）
+            let deleteBtn = '';
+            if (isCreator) {
+                deleteBtn = `<button class="btn-delete" data-action="delete">🗑️ 删除</button>`;
             }
 
             card.innerHTML = `
@@ -478,7 +496,8 @@
                 <div class="card-footer">
                     <div class="progress-wrap"><div class="progress-bar"><div class="progress-fill ${progress>=100?'full':''}" style="width:${progress}%"></div></div><span class="progress-text">${team.members.length}/${team.maxPlayers}</span></div>
                     <span class="time-left ${timeLeft.urgent?'urgent':''}">⏱ ${timeLeft.text}</span>
-                    ${actionBtn}
+                    ${actionHTML}
+                    ${deleteBtn}
                     <button class="btn-share-card" data-action="share">📋</button>
                 </div>`;
             return card;
@@ -559,7 +578,12 @@
         }
 
         async function deleteTeam(teamId) {
-            await teamsCollection.doc(teamId).delete();
+            try {
+                await teamsCollection.doc(teamId).delete();
+                showToast('车队已删除', 'success');
+            } catch(e) {
+                showToast('删除失败', 'warning');
+            }
         }
 
         // ==================== 业务逻辑 ====================
@@ -580,14 +604,23 @@
             const team = allTeams.find(t => t.id === teamId);
             if (!team) return;
             if (team.creatorUid === uid) {
-                if (confirm('你是队长，退出将解散车队。确定吗？')) {
-                    await deleteTeam(teamId);
-                    showToast('车队已解散', 'warning');
-                }
-            } else {
-                const newMembers = team.members.filter(m => m.uid !== uid);
-                await updateMembers(teamId, newMembers);
-                showToast('已退出车队', 'success');
+                showToast('队长不能直接退出，请使用删除按钮', 'warning');
+                return;
+            }
+            const newMembers = team.members.filter(m => m.uid !== uid);
+            await updateMembers(teamId, newMembers);
+            showToast('已退出车队', 'success');
+        }
+
+        async function handleDelete(teamId) {
+            const team = allTeams.find(t => t.id === teamId);
+            if (!team) return;
+            if (team.creatorUid !== uid) {
+                showToast('只能删除自己创建的车队', 'warning');
+                return;
+            }
+            if (confirm('确定要删除这个车队吗？所有成员将被移除。')) {
+                await deleteTeam(teamId);
             }
         }
 
@@ -703,7 +736,6 @@ ${team.notes ? `💬 备注：${team.notes}` : ''}
             const success = await createTeam(teamData);
             if (success) {
                 document.getElementById('modalCreate').style.display = 'none';
-                // 自动复制车队信息
                 setTimeout(() => {
                     const created = allTeams.find(t => t.creatorUid===uid && t.name===name && t.createdAt===teamData.createdAt);
                     if (created) copyTeamInfo(created);
@@ -711,19 +743,22 @@ ${team.notes ? `💬 备注：${team.notes}` : ''}
             }
         });
 
-        // 卡片点击委托
+        // 卡片点击委托（新增删除处理）
         document.getElementById('app').addEventListener('click', (e)=>{
             const card = e.target.closest('.team-card');
             if (!card) return;
             const teamId = card.dataset.teamId;
-            // 加入/退出
             const btn = e.target.closest('[data-action]');
             if (btn) {
-                if (btn.dataset.action === 'join') handleJoin(teamId);
-                else if (btn.dataset.action === 'leave') handleLeave(teamId);
-                else if (btn.dataset.action === 'share') {
+                const action = btn.dataset.action;
+                if (action === 'join') handleJoin(teamId);
+                else if (action === 'leave') handleLeave(teamId);
+                else if (action === 'share') {
                     const team = allTeams.find(t=>t.id===teamId);
                     if (team) copyTeamInfo(team);
+                }
+                else if (action === 'delete') {
+                    handleDelete(teamId);
                 }
                 return;
             }
@@ -798,8 +833,8 @@ ${team.notes ? `💬 备注：${team.notes}` : ''}
         function init() {
             populateSelects();
             updateUserDisplay();
-            subscribe(); // 开始监听数据
-            // 定期清理过期车队（可选，减少存储）
+            subscribe();
+            // 定期清理过期车队
             setInterval(() => {
                 allTeams.forEach(async team => {
                     if (team.expiresAt < Date.now() - 30*60000) {
