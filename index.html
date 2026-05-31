@@ -1439,9 +1439,6 @@
             }
 
             async function init() {
-                if (window.location.protocol === 'file:') {
-                    showToast('⚠️ 请通过 http:// 或 https:// 访问，否则无法使用', 'warning');·
-                }
                 populateRankSelects();
                 renderUserBar();
                 await refreshData();
