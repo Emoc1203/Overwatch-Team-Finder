@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>OW车队 - 守望先锋组队助手</title>
-    <!-- Bmob SDK -->
     <script src="https://cdn.bmob.cn/bmob-5.2.2.min.js"></script>
     <style>
         :root {
@@ -42,21 +41,21 @@
             color: var(--text);
             min-height: 100vh; min-height: 100dvh;
             line-height: 1.5;
-            -webkit-font-smoothing: antialiased;
             -webkit-tap-highlight-color: transparent;
-            user-select: none; -webkit-user-select: none;
+            user-select: none;
             display: flex; justify-content: center;
         }
         .app-container {
-            width: 100%; max-width: 500px; min-height: 100vh; min-height: 100dvh;
+            width: 100%; max-width: 500px; min-height: 100vh;
             display: flex; flex-direction: column; padding: 0 16px;
             padding-bottom: calc(80px + var(--safe-bottom)); position: relative;
         }
         .header {
             position: sticky; top:0; z-index:100;
-            background: rgba(26,26,46,0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            background: rgba(26,26,46,0.85); backdrop-filter: blur(20px);
             padding:16px 0 12px; border-bottom:1px solid var(--border);
             display:flex; align-items:center; gap:10px;
+            -webkit-backdrop-filter: blur(20px);
         }
         .header-logo { width:38px; height:38px; border-radius:10px; background:linear-gradient(135deg, var(--ow-orange), #e8871a); display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; }
         .header-title { font-size:18px; font-weight:700; color:#fff; }
@@ -65,8 +64,7 @@
         .btn-icon { width:36px; height:36px; border-radius:50%; border:1px solid var(--border); background:var(--bg-card); color:var(--text-secondary); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:16px; transition:all var(--transition); position:relative; }
         .btn-icon:active { background:var(--bg-hover); transform:scale(0.94); }
         .btn-icon .badge { position:absolute; top:-4px; right:-4px; width:18px; height:18px; border-radius:50%; background:var(--danger); color:#fff; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; border:2px solid var(--bg); }
-
-        .user-bar { background:var(--bg-card); border-radius:var(--radius); padding:10px 14px; margin:14px 0 8px; display:flex; align-items:center; gap:10px; border:1px solid var(--border); cursor:pointer; transition:all var(--transition); }
+        .user-bar { background:var(--bg-card); border-radius:var(--radius); padding:10px 14px; margin:14px 0 8px; display:flex; align-items:center; gap:10px; border:1px solid var(--border); cursor:pointer; }
         .user-bar:active { background:var(--bg-hover); }
         .user-bar .avatar { width:36px; height:36px; border-radius:50%; background:var(--bg-input); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; border:2px solid var(--border); }
         .user-bar .info { flex:1; min-width:0; }
@@ -74,11 +72,9 @@
         .user-bar .detail { font-size:11px; color:var(--text-muted); display:flex; gap:8px; flex-wrap:wrap; }
         .user-bar .detail span { background:var(--bg-input); padding:2px 8px; border-radius:10px; font-size:10px; }
         .user-bar .edit-hint { font-size:11px; color:var(--ow-orange); white-space:nowrap; flex-shrink:0; }
-
         .tab-nav { display:flex; gap:4px; background:var(--bg-card); border-radius:var(--radius); padding:4px; margin-bottom:12px; border:1px solid var(--border); }
         .tab-btn { flex:1; padding:10px 8px; border:none; border-radius:var(--radius-sm); background:transparent; color:var(--text-secondary); cursor:pointer; font-size:13px; font-weight:600; transition:all var(--transition); white-space:nowrap; }
         .tab-btn.active { background:var(--ow-orange); color:#1a1a2e; }
-
         .filter-bar { display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; align-items:center; }
         .filter-chip, .filter-rank-select { padding:7px 13px; border-radius:20px; border:1px solid var(--border); background:var(--bg-card); color:var(--text-secondary); font-size:12px; cursor:pointer; font-weight:500; transition:all var(--transition); white-space:nowrap; font-family:inherit; }
         .filter-chip.active { background:var(--ow-orange); border-color:var(--ow-orange); color:#1a1a2e; font-weight:700; }
@@ -86,9 +82,8 @@
         .filter-chip.role-dps.active { background:var(--dps); border-color:var(--dps); }
         .filter-chip.role-support.active { background:var(--support); border-color:var(--support); }
         .filter-clear { margin-left:auto; font-size:11px; color:var(--ow-orange); cursor:pointer; padding:4px 8px; font-weight:500; }
-
         .team-list { display:flex; flex-direction:column; gap:10px; }
-        .team-card { background:var(--bg-card); border-radius:var(--radius); padding:14px 16px; border:1px solid var(--border); transition:all var(--transition); cursor:pointer; position:relative; box-shadow:var(--shadow-sm); }
+        .team-card { background:var(--bg-card); border-radius:var(--radius); padding:14px 16px; border:1px solid var(--border); cursor:pointer; position:relative; box-shadow:var(--shadow-sm); }
         .team-card.highlighted { border-color:var(--ow-orange); box-shadow:0 0 0 3px var(--ow-orange-glow); }
         .card-header { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:8px; }
         .team-name { font-weight:700; font-size:15px; color:#fff; }
@@ -98,18 +93,15 @@
         .tag-arena { background:rgba(224,85,85,0.2); color:#e05555; }
         .tag-fun { background:rgba(74,144,217,0.2); color:#4a90d9; }
         .tag-custom { background:rgba(160,160,184,0.25); color:#ccc; }
-
         .card-meta { display:flex; flex-wrap:wrap; gap:6px; font-size:11px; color:var(--text-muted); margin-bottom:8px; align-items:center; }
         .rank-range { font-weight:600; color:var(--ow-orange); font-size:12px; background:var(--ow-orange-glow); padding:3px 8px; border-radius:10px; }
         .battletag { font-size:11px; background:rgba(255,255,255,0.05); padding:3px 8px; border-radius:10px; display:inline-flex; align-items:center; gap:4px; color:var(--text-secondary); }
         .copy-btag { cursor:pointer; color:var(--ow-orange); font-weight:600; }
-
         .roles-needed { display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
         .role-badge { padding:4px 10px; border-radius:14px; font-size:11px; font-weight:600; }
         .role-badge.tank { background:var(--tank-bg); color:#6db3f0; }
         .role-badge.dps { background:var(--dps-bg); color:#f07070; }
         .role-badge.support { background:var(--support-bg); color:#6cc96c; }
-
         .card-footer { display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap; }
         .progress-wrap { flex:1; display:flex; align-items:center; gap:8px; min-width:100px; }
         .progress-bar { flex:1; height:6px; background:var(--bg-input); border-radius:3px; overflow:hidden; }
@@ -119,15 +111,12 @@
         .time-left { font-size:10px; color:var(--text-muted); white-space:nowrap; }
         .time-left.urgent { color:#e05555; animation:pulse 1.5s infinite; }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
-
         .btn-join { padding:6px 14px; border-radius:20px; border:none; background:var(--ow-orange); color:#1a1a2e; font-weight:700; font-size:12px; cursor:pointer; white-space:nowrap; }
         .btn-join.joined { background:var(--success); color:#fff; }
         .btn-share-card { padding:6px 10px; border-radius:16px; border:1px solid var(--border); background:transparent; color:var(--text-secondary); cursor:pointer; font-size:11px; }
         .btn-delete { padding:6px 10px; border-radius:16px; border:1px solid var(--danger); background:rgba(224,85,85,0.15); color:var(--danger); cursor:pointer; font-size:11px; font-weight:600; }
-
         .empty-state { text-align:center; padding:40px 20px; color:var(--text-muted); }
         .empty-state .icon { font-size:48px; margin-bottom:12px; opacity:0.6; }
-
         .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:200; display:flex; align-items:flex-end; justify-content:center; backdrop-filter:blur(3px); }
         .modal-sheet { background:var(--bg-card); border-radius:20px 20px 0 0; width:100%; max-width:500px; max-height:85vh; overflow-y:auto; padding:20px 18px; padding-bottom:calc(24px + var(--safe-bottom)); box-shadow:0 -8px 40px rgba(0,0,0,0.5); }
         .modal-handle { width:36px; height:4px; background:var(--border); border-radius:2px; margin:0 auto 16px; }
@@ -141,12 +130,10 @@
         .checkbox-chip.selected { border-color:var(--ow-orange); background:var(--ow-orange-glow); color:#fff; font-weight:700; }
         .btn-submit { width:100%; padding:13px; border-radius:var(--radius); border:none; background:linear-gradient(135deg, var(--ow-orange), #e8871a); color:#1a1a2e; font-weight:700; font-size:15px; cursor:pointer; }
         .btn-cancel { width:100%; padding:12px; border-radius:var(--radius); border:1px solid var(--border); background:transparent; color:var(--text-secondary); font-weight:600; font-size:14px; cursor:pointer; margin-top:8px; }
-
         .toast { position:fixed; top:20px; left:50%; transform:translateX(-50%); z-index:999; background:#333; color:#fff; padding:10px 20px; border-radius:20px; font-size:13px; font-weight:600; pointer-events:none; animation:toastIn 0.3s, toastOut 0.3s 1.8s forwards; }
         .toast.success { background:#4caf84; }
         @keyframes toastIn { from{opacity:0; transform:translateX(-50%) translateY(-30px)} to{opacity:1; transform:translateX(-50%) translateY(0)} }
         @keyframes toastOut { from{opacity:1; transform:translateX(-50%) translateY(0)} to{opacity:0; transform:translateX(-50%) translateY(-30px)} }
-
         .fab { position:fixed; bottom:calc(24px + var(--safe-bottom)); left:50%; transform:translateX(-50%); z-index:150; width:52px; height:52px; border-radius:50%; background:linear-gradient(135deg, var(--ow-orange), #e8871a); border:none; color:#1a1a2e; font-size:26px; cursor:pointer; }
         .member-list { margin-top:8px; padding-top:8px; border-top:1px solid var(--border); display:flex; flex-wrap:wrap; gap:6px; }
         .member-chip { font-size:10px; padding:4px 10px; border-radius:12px; background:var(--bg-input); color:var(--text-secondary); }
@@ -269,13 +256,42 @@
     let expanded = new Set();
     let allTeams = [];
 
+    // ---------- 弹窗辅助 ----------
+    function openSettings() {
+        const u = loadUser();
+        document.getElementById('settingsNickname').value = u?.nickname||'';
+        document.getElementById('settingsBtag').value = u?.battleTag||'';
+        document.getElementById('settingsRank').value = u?.rank||RANKS[Math.floor(RANKS.length/2)].value;
+        document.querySelectorAll('#settingsRoles .checkbox-chip').forEach(c=>c.classList.toggle('selected', u?.roles?.includes(c.dataset.role)));
+        document.getElementById('modalSettings').style.display='flex';
+    }
+
+    document.getElementById('userBar').addEventListener('click', openSettings);
+    document.getElementById('btnCancelSettings').addEventListener('click', ()=>document.getElementById('modalSettings').style.display='none');
+    document.getElementById('modalSettings').addEventListener('click', function(e){ if(e.target===this) this.style.display='none'; });
+
+    document.getElementById('settingsForm').addEventListener('submit', e=>{
+        e.preventDefault();
+        const nickname = document.getElementById('settingsNickname').value.trim();
+        if(!nickname) return showToast('输入昵称','warning');
+        const btag = document.getElementById('settingsBtag').value.trim();
+        const rank = +document.getElementById('settingsRank').value;
+        const roles = [...document.querySelectorAll('#settingsRoles .checkbox-chip.selected')].map(c=>c.dataset.role);
+        if(!roles.length) return showToast('选位置','warning');
+        saveUser({ nickname, battleTag: btag, rank, roles, uid });
+        document.getElementById('modalSettings').style.display='none';
+        updateUserDisplay();
+        renderAll();
+        showToast('已保存','success');
+    });
+
     // ---------- Bmob 数据操作 ----------
     async function fetchAllTeams() {
         try {
             const query = Bmob.Query('Team');
             query.order('-createdAt');
             const res = await query.find();
-            allTeams = res.map(obj => { return { id: obj.objectId, ...obj.attributes }; });
+            allTeams = res.map(obj => ({ id: obj.objectId, ...obj.attributes }));
             renderAll();
             updateBadge();
         } catch(e) {
@@ -287,7 +303,7 @@
         const TeamObj = Bmob.Query('Team');
         const team = TeamObj.create(data);
         await team.save();
-        fetchAllTeams(); // 立即刷新
+        fetchAllTeams();
     }
 
     async function updateTeam(id, updateData) {
@@ -297,13 +313,13 @@
         fetchAllTeams();
     }
 
-    async function deleteTeam(id) {
+    async function removeTeam(id) {
         const team = Bmob.Query('Team').object(id);
         await team.destroy();
         fetchAllTeams();
     }
 
-    // 轮询实时同步（每4秒刷新）
+    // 轮询实时同步
     setInterval(fetchAllTeams, 4000);
 
     function getFiltered() {
@@ -420,8 +436,8 @@
         await updateTeam(teamId, { members: newMems, presetCount: newMems.length });
     }
     // 删除
-    async function removeTeam(teamId) {
-        if (confirm('确定解散这个车队吗？')) await deleteTeam(teamId);
+    async function deleteTeam(teamId) {
+        if (confirm('确定解散这个车队吗？')) await removeTeam(teamId);
     }
 
     function copyBtag(btag) {
@@ -446,7 +462,7 @@
         c.appendChild(t); setTimeout(()=>t.remove(),2200);
     }
 
-    // ==================== 事件绑定 ====================
+    // ==================== 事件委托 ====================
     document.getElementById('app').addEventListener('click', e => {
         const card = e.target.closest('.team-card');
         if (!card) return;
@@ -456,7 +472,7 @@
             const act = btn.dataset.action;
             if (act==='join') join(tid);
             else if (act==='leave') leave(tid);
-            else if (act==='delete') removeTeam(tid);
+            else if (act==='delete') deleteTeam(tid);
             else if (act==='share') { const team=allTeams.find(t=>t.id===tid); if(team) shareTeam(team); }
             else if (act==='copyBtag') { const team=allTeams.find(t=>t.id===tid); if(team?.battleTag) copyBtag(team.battleTag); }
             return;
@@ -470,7 +486,7 @@
         }
     });
 
-    // 标签切换
+    // 标签
     document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click', ()=>{
         currentTab = b.dataset.tab; renderAll();
     }));
@@ -491,31 +507,6 @@
         renderAll();
     });
 
-    // 设置弹窗
-    document.getElementById('userBar').addEventListener('click', ()=>{
-        const u = loadUser();
-        document.getElementById('settingsNickname').value = u?.nickname||'';
-        document.getElementById('settingsBtag').value = u?.battleTag||'';
-        document.getElementById('settingsRank').value = u?.rank||RANKS[Math.floor(RANKS.length/2)].value;
-        document.querySelectorAll('#settingsRoles .checkbox-chip').forEach(c=>c.classList.toggle('selected', u?.roles?.includes(c.dataset.role)));
-        document.getElementById('modalSettings').style.display='flex';
-    });
-    document.getElementById('btnCancelSettings').addEventListener('click', ()=>document.getElementById('modalSettings').style.display='none');
-    document.getElementById('settingsForm').addEventListener('submit', e=>{
-        e.preventDefault();
-        const nickname = document.getElementById('settingsNickname').value.trim();
-        if(!nickname) return showToast('输入昵称','warning');
-        const btag = document.getElementById('settingsBtag').value.trim();
-        const rank = +document.getElementById('settingsRank').value;
-        const roles = [...document.querySelectorAll('#settingsRoles .checkbox-chip.selected')].map(c=>c.dataset.role);
-        if(!roles.length) return showToast('选位置','warning');
-        saveUser({ nickname, battleTag: btag, rank, roles, uid });
-        document.getElementById('modalSettings').style.display='none';
-        updateUserDisplay();
-        renderAll();
-        showToast('已保存','success');
-    });
-    document.getElementById('modalSettings').addEventListener('click', function(e){ if(e.target===this) this.style.display='none'; });
     function updateUserDisplay() {
         const u = loadUser();
         if(u) {
@@ -526,7 +517,7 @@
         }
     }
 
-    // 创建车队弹窗
+    // 创建弹窗
     document.getElementById('fabCreate').addEventListener('click', ()=>{
         const u = loadUser();
         if(!u?.nickname) { showToast('请先设置个人资料','warning'); openSettings(); return; }
@@ -546,6 +537,7 @@
         for(let i=1; i<max; i++) sel.innerHTML += `<option value="${i}" ${i===1?'selected':''}>${i}人</option>`;
     }
     document.getElementById('btnCancelCreate').addEventListener('click', ()=>document.getElementById('modalCreate').style.display='none');
+    document.getElementById('modalCreate').addEventListener('click', function(e){ if(e.target===this) this.style.display='none'; });
     document.getElementById('createForm').addEventListener('submit', async e=>{
         e.preventDefault();
         const u = loadUser();
@@ -573,7 +565,6 @@
         document.getElementById('modalCreate').style.display = 'none';
         showToast('车队已发布！','success');
     });
-    document.getElementById('modalCreate').addEventListener('click', function(e){ if(e.target===this) this.style.display='none'; });
 
     // 初始化下拉列表
     function populateSelects() {
@@ -592,7 +583,7 @@
     function init() {
         populateSelects();
         updateUserDisplay();
-        fetchAllTeams(); // 第一次拉取
+        fetchAllTeams();
     }
     document.addEventListener('DOMContentLoaded', init);
 </script>
