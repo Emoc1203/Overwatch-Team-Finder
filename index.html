@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>OW车队 - 守望先锋组队助手</title>
+    <!-- Firebase SDK (Scripts) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <style>
+        :root {
+            --bg: #1a1a2e;
+            --bg-card: #1f2035;
+            --bg-input: #252740;
+            --bg-hover: #2a2d45;
+            --border: #2e3050;
+            --text: #e0e0e0;
+            --text-secondary: #a0a0b8;
+            --text-muted: #6b6d80;
+            --ow-orange: #f99e1a;
+            --ow-orange-dark: #d8850f;
+            --ow-orange-glow: rgba(249,158,26,0.25);
+            --tank: #4a90d9;
+            --tank-bg: rgba(74,144,217,0.2);
+            --dps: #e05555;
+            --dps-bg: rgba(224,85,85,0.2);
+            --support: #5cb85c;
+            --support-bg: rgba(92,184,92,0.2);
+            --success: #4caf84;
+            --danger: #e05555;
+            --warning: #f0a840;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --radius-xs: 6px;
+            --shadow: 0 4px 20px rgba(0,0,0,0.35);
+            --shadow-sm: 0 2px 8px rgba(0,0,0,0.25);
+            --transition: 0.2s cubic-bezier(0.4,0,0.2,1);
+            --safe-bottom: env(safe-area-inset-bottom, 16px);
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh; min-height: 100dvh;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none; -webkit-user-select: none;
+            display: flex; justify-content: center;
+            background-image:
+                radial-gradient(ellipse at 50% 0%, rgba(249,158,26,0.06) 0%, transparent 60%),
+                radial-gradient(ellipse at 85% 20%, rgba(74,144,217,0.04) 0%, transparent 50%),
+                radial-gradient(ellipse at 15% 70%, rgba(224,85,85,0.03) 0%, transparent 50%);
+        }
+        .app-container {
+            width: 100%; max-width: 500px; min-height: 100vh; min-height: 100dvh;
+            display: flex; flex-direction: column; padding: 0 16px;
+            padding-bottom: calc(80px + var(--safe-bottom)); position: relative;
+        }
+        .header {
+            position: sticky; top:0; z-index:100;
+            background: rgba(26,26,46,0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            padding:16px 0 12px; border-bottom:1px solid var(--border);
+            display:flex; align-items:center; gap:10px;
+        }
+        .header-logo {
+            width:38px; height:38px; border-radius:10px;
+            background:linear-gradient(135deg, var(--ow-orange), #e8871a);
+            display:flex; align-items:center; justify-content:center;
+            font-size:22px; flex-shrink:0; box-shadow:0 2px 12px var(--ow-orange-glow);
+        }
+        .header-title { font-size:18px; font-weight:700; letter-spacing:0.5px; color:#fff; }
+        .header-subtitle { font-size:11px; color:var(--text-muted); margin-top:-2px; }
+        .header-actions { margin-left:auto; display:flex; gap:6px; }
+        .btn-icon {
+            width:36px; height:36px; border-radius:50%; border:1px solid var(--border);
+            background:var(--bg-card); color:var(--text-secondary); cursor:pointer;
+            display:flex; align-items:center; justify-content:center; font-size:16px;
+            transition:all var(--transition); position:relative;
+        }
+        .btn-icon:active { background:var(--bg-hover); transform:scale(0.94); }
+        .btn-icon .badge {
+            position:absolute; top:-4px; right:-4px; width:18px; height:18px;
+            border-radius:50%; background:var(--danger); color:#fff; font-size:10px;
+            font-weight:700; display:flex; align-items:center; justify-content:center;
+            border:2px solid var(--bg);
+        }
+        .user-bar {
+            background:var(--bg-card); border-radius:var(--radius); padding:10px 14px;
+            margin:14px 0 8px; display:flex; align-items:center; gap:10px;
+            border:1px solid var(--border); cursor:pointer; transition:all var(--transition);
+        }
+        .user-bar:active { background:var(--bg-hover); }
+        .user-bar .avatar {
+            width:36px; height:36px; border-radius:50%; background:var(--bg-input);
+            display:flex; align-items:center; justify-content:center; font-size:18px;
+            flex-shrink:0; border:2px solid var(--border);
+        }
+        .user-bar .info { flex:1; min-width:0; }
+        .user-bar .nickname { font-weight:600; font-size:14px; color:#fff; }
+        .user-bar .detail { font-size:11px; color:var(--text-muted); display:flex; gap:8px; flex-wrap:wrap; }
+        .user-bar .detail span { background:var(--bg-input); padding:2px 8px; border-radius:10px; font-size:10px; }
+        .user-bar .edit-hint { font-size:11px; color:var(--ow-orange); white-space:nowrap; flex-shrink:0; }
+        .tab-nav {
+            display:flex; gap:4px; background:var(--bg-card); border-radius:var(--radius);
+            padding:4px; margin-bottom:12px; border:1px solid var(--border);
+        }
+        .tab-btn {
+            flex:1; padding:10px 8px; border:none; border-radius:var(--radius-sm);
+            background:transparent; color:var(--text-secondary); cursor:pointer;
+            font-size:13px; font-weight:600; transition:all var(--transition);
+            white-space:nowrap; letter-spacing:0.3px;
+        }
+        .tab-btn.active { background:var(--ow-orange); color:#1a1a2e; box-shadow:0 2px 10px var(--ow-orange-glow); }
+        .tab-btn:not(.active):active { background:var(--bg-hover); color:#fff; }
+        .filter-bar { display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; align-items:center; }
+        .filter-chip, .filter-rank-select {
+            padding:7px 13px; border-radius:20px; border:1px solid var(--border);
+            background:var(--bg-card); color:var(--text-secondary); font-size:12px;
+            cursor:pointer; font-weight:500; transition:all var(--transition);
+            white-space:nowrap; letter-spacing:0.3px; font-family:inherit;
+        }
+        .filter-chip.active, .filter-rank-select:focus { background:var(--ow-orange); border-color:var(--ow-orange); color:#1a1a2e; font-weight:700; }
+        .filter-chip.role-tank.active { background:var(--tank); border-color:var(--tank); }
+        .filter-chip.role-dps.active { background:var(--dps); border-color:var(--dps); }
+        .filter-chip.role-support.active { background:var(--support); border-color:var(--support); }
+        .filter-clear { margin-left:auto; font-size:11px; color:var(--ow-orange); cursor:pointer; padding:4px 8px; font-weight:500; }
+        .team-list { display:flex; flex-direction:column; gap:10px; }
+        .team-card {
+            background:var(--bg-card); border-radius:var(--radius); padding:14px 16px;
+            border:1px solid var(--border); transition:all var(--transition); cursor:pointer;
+            position:relative; box-shadow:var(--shadow-sm);
+        }
+        .team-card:active { transform:scale(0.985); background:var(--bg-hover); }
+        .team-card.highlighted { border-color:var(--ow-orange); box-shadow:0 0 0 3px var(--ow-orange-glow), var(--shadow); }
+        .team-card.expired { opacity:0.5; pointer-events:none; filter:grayscale(30%); }
+        .card-header { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:8px; }
+        .team-name { font-weight:700; font-size:15px; color:#fff; }
+        .team-tag { font-size:10px; padding:3px 8px; border-radius:10px; font-weight:600; }
+        .tag-casual { background:rgba(92,184,92,0.2); color:#5cb85c; }
+        .tag-ranked { background:rgba(249,158,26,0.2); color:#f99e1a; }
+        .tag-teaching { background:rgba(74,144,217,0.2); color:#4a90d9; }
+        .card-meta { display:flex; flex-wrap:wrap; gap:6px; font-size:11px; color:var(--text-muted); margin-bottom:8px; align-items:center; }
+        .rank-range { font-weight:600; color:var(--ow-orange); font-size:12px; background:var(--ow-orange-glow); padding:3px 8px; border-radius:10px; }
+        .roles-needed { display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
+        .role-badge { padding:4px 10px; border-radius:14px; font-size:11px; font-weight:600; }
+        .role-badge.tank { background:var(--tank-bg); color:#6db3f0; }
+        .role-badge.dps { background:var(--dps-bg); color:#f07070; }
+        .role-badge.support { background:var(--support-bg); color:#6cc96c; }
+        .card-footer { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+        .progress-wrap { flex:1; display:flex; align-items:center; gap:8px; }
+        .progress-bar { flex:1; height:6px; background:var(--bg-input); border-radius:3px; overflow:hidden; }
+        .progress-fill { height:100%; border-radius:3px; background:var(--ow-orange); transition:width 0.4s; }
+        .progress-fill.full { background:var(--success); }
+        .progress-text { font-size:11px; font-weight:600; color:var(--text-secondary); white-space:nowrap; min-width:32px; text-align:right; }
+        .time-left { font-size:10px; color:var(--text-muted); white-space:nowrap; }
+        .time-left.urgent { color:#e05555; animation:pulse 1.5s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+        .btn-join {
+            padding:8px 16px; border-radius:20px; border:none; background:var(--ow-orange);
+            color:#1a1a2e; font-weight:700; font-size:12px; cursor:pointer;
+            white-space:nowrap; letter-spacing:0.4px; box-shadow:0 2px 8px var(--ow-orange-glow);
+        }
+        .btn-join.joined { background:var(--success); color:#fff; }
+        .btn-share-card {
+            padding:6px 10px; border-radius:16px; border:1px solid var(--border);
+            background:transparent; color:var(--text-secondary); cursor:pointer;
+            font-size:11px; transition:all var(--transition);
+        }
+        .empty-state { text-align:center; padding:40px 20px; color:var(--text-muted); }
+        .empty-state .icon { font-size:48px; margin-bottom:12px; opacity:0.6; }
+        .modal-overlay {
+            position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:200;
+            display:flex; align-items:flex-end; justify-content:center;
+            backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px);
+            animation:fadeIn 0.2s;
+        }
+        @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+        .modal-sheet {
+            background:var(--bg-card); border-radius:20px 20px 0 0; width:100%; max-width:500px;
+            max-height:85vh; max-height:85dvh; overflow-y:auto; padding:20px 18px;
+            padding-bottom:calc(24px + var(--safe-bottom)); box-shadow:0 -8px 40px rgba(0,0,0,0.5);
+            animation:slideUp 0.3s cubic-bezier(0.32,0.72,0,1);
+        }
+        @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+        .modal-handle { width:36px; height:4px; background:var(--border); border-radius:2px; margin:0 auto 16px; }
+        .modal-title { font-size:17px; font-weight:700; color:#fff; text-align:center; margin-bottom:18px; }
+        .form-group { margin-bottom:14px; }
+        .form-label { display:block; font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:5px; text-transform:uppercase; }
+        .form-input, .form-select, .form-textarea {
+            width:100%; padding:11px 14px; border-radius:var(--radius-sm); border:1px solid var(--border);
+            background:var(--bg-input); color:#fff; font-size:14px; font-family:inherit; outline:none;
+        }
+        .form-input:focus, .form-select:focus { border-color:var(--ow-orange); box-shadow:0 0 0 3px var(--ow-orange-glow); }
+        .form-textarea { resize:vertical; min-height:60px; font-size:13px; }
+        .form-select {
+            cursor:pointer; appearance:none; -webkit-appearance:none;
+            background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a0a0b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat:no-repeat; background-position:right 12px center; padding-right:36px;
+        }
+        .checkbox-group { display:flex; gap:8px; flex-wrap:wrap; }
+        .checkbox-chip {
+            padding:8px 14px; border-radius:20px; border:1px solid var(--border);
+            background:var(--bg-input); color:var(--text-secondary); cursor:pointer;
+            font-size:13px; font-weight:500; transition:all var(--transition);
+        }
+        .checkbox-chip.selected { border-color:var(--ow-orange); background:var(--ow-orange-glow); color:#fff; font-weight:700; }
+        .btn-submit {
+            width:100%; padding:13px; border-radius:var(--radius); border:none;
+            background:linear-gradient(135deg, var(--ow-orange), #e8871a);
+            color:#1a1a2e; font-weight:700; font-size:15px; cursor:pointer;
+            box-shadow:0 4px 16px var(--ow-orange-glow); margin-top:6px;
+        }
+        .btn-cancel {
+            width:100%; padding:12px; border-radius:var(--radius); border:1px solid var(--border);
+            background:transparent; color:var(--text-secondary); font-weight:600;
+            font-size:14px; cursor:pointer; margin-top:8px;
+        }
+        .toast {
+            position:fixed; top:20px; left:50%; transform:translateX(-50%); z-index:999;
+            background:#333; color:#fff; padding:10px 20px; border-radius:20px;
+            font-size:13px; font-weight:600; box-shadow:0 8px 30px rgba(0,0,0,0.5);
+            pointer-events:none; animation:toastIn 0.3s, toastOut 0.3s 1.8s forwards;
+        }
+        .toast.success { background:#4caf84; }
+        @keyframes toastIn { from{opacity:0; transform:translateX(-50%) translateY(-30px)} to{opacity:1; transform:translateX(-50%) translateY(0)} }
+        @keyframes toastOut { from{opacity:1; transform:translateX(-50%) translateY(0)} to{opacity:0; transform:translateX(-50%) translateY(-30px)} }
+        .fab {
+            position:fixed; bottom:calc(24px + var(--safe-bottom)); left:50%; transform:translateX(-50%);
+            z-index:150; width:52px; height:52px; border-radius:50%;
+            background:linear-gradient(135deg, var(--ow-orange), #e8871a);
+            border:none; color:#1a1a2e; font-size:26px; cursor:pointer;
+            box-shadow:0 6px 24px rgba(249,158,26,0.45); display:flex;
+            align-items:center; justify-content:center; font-weight:700;
+        }
+        .fab:active { transform:translateX(-50%) scale(0.9); }
+        .member-list { margin-top:8px; padding-top:8px; border-top:1px solid var(--border); display:flex; flex-wrap:wrap; gap:6px; }
+        .member-chip { font-size:10px; padding:4px 10px; border-radius:12px; background:var(--bg-input); color:var(--text-secondary); }
+        .member-chip.leader { border:1px solid var(--ow-orange); color:#fff; }
+        .member-rank { font-weight:600; color:var(--ow-orange); }
+        @media (min-width:500px) {
+            .app-container { padding:0 20px; padding-bottom:calc(80px + 20px); }
+            .team-card { padding:16px 18px; }
+            .modal-sheet { border-radius:20px; margin-bottom:20px; max-height:80vh; max-height:80dvh; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container" id="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-logo">⚡</div>
+            <div><div class="header-title">OW车队</div><div class="header-subtitle">守望先锋组队助手</div></div>
+            <div class="header-actions">
+                <button class="btn-icon" id="btnMyTeams">👤<span class="badge" id="myTeamsBadge" style="display:none">0</span></button>
+            </div>
+        </header>
+
+        <!-- 用户设置条 -->
+        <div class="user-bar" id="userBar">
+            <div class="avatar">🎮</div>
+            <div class="info">
+                <div class="nickname" id="displayNickname">点击设置昵称</div>
+                <div class="detail" id="displayDetail"><span>设置段位</span><span>常用位置</span></div>
+            </div>
+            <div class="edit-hint">✎ 设置</div>
+        </div>
+
+        <!-- 标签切换 -->
+        <div class="tab-nav">
+            <button class="tab-btn active" data-tab="browse">🔍 浏览车队</button>
+            <button class="tab-btn" data-tab="my">📋 我的车队</button>
+        </div>
+
+        <!-- 筛选栏 -->
+        <div class="filter-bar" id="filterBar">
+            <span style="font-size:11px;color:var(--text-muted);">段位:</span>
+            <select class="filter-rank-select" id="filterRank"></select>
+            <span style="font-size:11px;color:var(--text-muted);">位置:</span>
+            <span class="filter-chip role-tank" data-role="tank">🛡️ T位</span>
+            <span class="filter-chip role-dps" data-role="dps">⚔️ C位</span>
+            <span class="filter-chip role-support" data-role="support">💚 奶位</span>
+            <span class="filter-clear" id="filterClear">重置</span>
+        </div>
+
+        <!-- 车队列表 -->
+        <div class="team-list" id="teamList"></div>
+        <div class="team-list" id="myTeamList" style="display:none;"></div>
+
+        <button class="fab" id="fabCreate">+</button>
+    </div>
+
+    <!-- 创建车队弹窗 -->
+    <div class="modal-overlay" id="modalCreate" style="display:none;">
+        <div class="modal-sheet">
+            <div class="modal-handle"></div>
+            <div class="modal-title">🚗 创建车队</div>
+            <form id="createForm" autocomplete="off">
+                <div class="form-group"><label class="form-label">车队名称</label><input class="form-input" id="teamName" placeholder="如：快乐上分队" maxlength="20" required></div>
+                <div class="form-group"><label class="form-label">类型</label><select class="form-select" id="teamType"><option value="ranked">🎯 竞技上分</option><option value="casual">🎉 休闲娱乐</option><option value="teaching">📚 教学车</option></select></div>
+                <div class="form-group"><label class="form-label">段位范围</label><div style="display:flex; gap:8px;"><select class="form-select" id="minRank"></select><span style="color:var(--text-muted);align-self:center;">至</span><select class="form-select" id="maxRank"></select></div></div>
+                <div class="form-group"><label class="form-label">需要位置</label><div class="checkbox-group" id="roleCheckboxes"><span class="checkbox-chip role-tank selected" data-role="tank">🛡️ T位</span><span class="checkbox-chip role-dps selected" data-role="dps">⚔️ C位</span><span class="checkbox-chip role-support selected" data-role="support">💚 奶位</span></div></div>
+                <div class="form-group"><label class="form-label">人数上限</label><select class="form-select" id="maxPlayers"><option value="2">2人</option><option value="3">3人</option><option value="4">4人</option><option value="5" selected>5人</option><option value="6">6人</option></select></div>
+                <div class="form-group"><label class="form-label">有效时间</label><select class="form-select" id="duration"><option value="15">15分钟</option><option value="30">30分钟</option><option value="60" selected>60分钟</option><option value="120">2小时</option><option value="240">4小时</option></select></div>
+                <div class="form-group"><label class="form-label">备注</label><textarea class="form-textarea" id="notes" placeholder="如：有语音、来心态好的..." maxlength="200"></textarea></div>
+                <button type="submit" class="btn-submit">🚀 发布车队</button>
+                <button type="button" class="btn-cancel" id="btnCancelCreate">取消</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 用户设置弹窗 -->
+    <div class="modal-overlay" id="modalSettings" style="display:none;">
+        <div class="modal-sheet">
+            <div class="modal-handle"></div>
+            <div class="modal-title">👤 个人设置</div>
+            <form id="settingsForm" autocomplete="off">
+                <div class="form-group"><label class="form-label">昵称</label><input class="form-input" id="settingsNickname" placeholder="输入昵称" maxlength="16" required></div>
+                <div class="form-group"><label class="form-label">段位</label><select class="form-select" id="settingsRank"></select></div>
+                <div class="form-group"><label class="form-label">常用位置</label><div class="checkbox-group" id="settingsRoles"><span class="checkbox-chip role-tank" data-role="tank">🛡️ T位</span><span class="checkbox-chip role-dps" data-role="dps">⚔️ C位</span><span class="checkbox-chip role-support" data-role="support">💚 奶位</span></div></div>
+                <button type="submit" class="btn-submit">💾 保存设置</button>
+                <button type="button" class="btn-cancel" id="btnCancelSettings">取消</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="toastContainer"></div>
+
+    <script>
+        // ==================== Firebase 初始化（已内置配置） ====================
+        const firebaseConfig = {
+            apiKey: "AIzaSyAdzd0sRdGWo0H4BUEZYt0yKraBZxEW-fE",
+            authDomain: "ow-team-ce6b5.firebaseapp.com",
+            projectId: "ow-team-ce6b5",
+            storageBucket: "ow-team-ce6b5.firebasestorage.app",
+            messagingSenderId: "592197942637",
+            appId: "1:592197942637:web:21e38c7ec39d7ff153ae64"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        db.enablePersistence({ synchronizeTabs: true }).catch(err => {
+            if (err.code === 'failed-precondition') {
+                console.warn('多标签打开，仅第一个支持离线持久化');
+            }
+        });
+        const teamsCollection = db.collection('teams');
+
+        // ==================== 常量 ====================
+        const RANKS = [
+            {label:'青铜5',value:1},{label:'青铜4',value:2},{label:'青铜3',value:3},{label:'青铜2',value:4},{label:'青铜1',value:5},
+            {label:'白银5',value:6},{label:'白银4',value:7},{label:'白银3',value:8},{label:'白银2',value:9},{label:'白银1',value:10},
+            {label:'黄金5',value:11},{label:'黄金4',value:12},{label:'黄金3',value:13},{label:'黄金2',value:14},{label:'黄金1',value:15},
+            {label:'白金5',value:16},{label:'白金4',value:17},{label:'白金3',value:18},{label:'白金2',value:19},{label:'白金1',value:20},
+            {label:'钻石5',value:21},{label:'钻石4',value:22},{label:'钻石3',value:23},{label:'钻石2',value:24},{label:'钻石1',value:25},
+            {label:'大师5',value:26},{label:'大师4',value:27},{label:'大师3',value:28},{label:'大师2',value:29},{label:'大师1',value:30},
+            {label:'宗师5',value:31},{label:'宗师4',value:32},{label:'宗师3',value:33},{label:'宗师2',value:34},{label:'宗师1',value:35},
+            {label:'五百强',value:36}
+        ];
+        const ROLE_EMOJI = { tank:'🛡️', dps:'⚔️', support:'💚' };
+        const ROLE_NAMES = { tank:'T位', dps:'C位', support:'奶位' };
+        const TAG = {
+            ranked: {label:'竞技上分',cls:'tag-ranked'},
+            casual: {label:'休闲娱乐',cls:'tag-casual'},
+            teaching: {label:'教学车',cls:'tag-teaching'}
+        };
+        const USER_KEY = 'ow_user_settings';
+        const UID_KEY = 'ow_uid';
+
+        function getUid() {
+            let uid = localStorage.getItem(UID_KEY);
+            if (!uid) {
+                uid = 'u_' + Date.now() + Math.random().toString(36).substr(2,6);
+                localStorage.setItem(UID_KEY, uid);
+            }
+            return uid;
+        }
+        function loadUser() {
+            try { const raw = localStorage.getItem(USER_KEY); return raw ? JSON.parse(raw) : null; } catch { return null; }
+        }
+        function saveUser(user) {
+            localStorage.setItem(USER_KEY, JSON.stringify(user));
+        }
+        const uid = getUid();
+
+        // ==================== UI 状态 ====================
+        let currentTab = 'browse';
+        let filterRank = '';
+        let filterRoles = new Set();
+        let expandedTeams = new Set();
+        let allTeams = [];
+
+        // 订阅实时数据
+        function subscribe() {
+            return teamsCollection.orderBy('createdAt', 'desc').onSnapshot(snapshot => {
+                allTeams = [];
+                snapshot.forEach(doc => {
+                    allTeams.push({ id: doc.id, ...doc.data() });
+                });
+                renderAll();
+                updateBadge();
+            });
+        }
+
+        // 渲染
+        function renderAll() {
+            renderTeamLists();
+            updateTabVisibility();
+        }
+
+        function getFilteredTeams() {
+            let teams = [...allTeams];
+            const now = Date.now();
+            teams = teams.filter(t => t.expiresAt > now); // 只显示未过期
+            if (filterRank) {
+                const val = parseInt(filterRank);
+                teams = teams.filter(t => t.minRank <= val && t.maxRank >= val);
+            }
+            if (filterRoles.size > 0) {
+                teams = teams.filter(t => t.rolesNeeded.some(r => filterRoles.has(r)));
+            }
+            return teams;
+        }
+
+        function renderTeamCards(container, teams, isMyView) {
+            container.innerHTML = '';
+            if (teams.length === 0) {
+                container.innerHTML = `<div class="empty-state"><div class="icon">🚗</div><div class="text">暂无车队</div></div>`;
+                return;
+            }
+            teams.forEach(team => {
+                const card = buildCard(team, isMyView);
+                container.appendChild(card);
+            });
+        }
+
+        function buildCard(team, isMyView) {
+            const card = document.createElement('div');
+            card.className = 'team-card';
+            if (!isMyView && isUserInRange(team) && !team.members.some(m=>m.uid===uid) && team.members.length<team.maxPlayers) {
+                card.classList.add('highlighted');
+            }
+            card.dataset.teamId = team.id;
+            const typeTag = TAG[team.type] || TAG.ranked;
+            const rankStr = formatRankRange(team.minRank, team.maxRank);
+            const rolesHTML = team.rolesNeeded.map(r=>`<span class="role-badge ${r}">${ROLE_EMOJI[r]} ${ROLE_NAMES[r]}</span>`).join('');
+            const progress = Math.round((team.members.length/team.maxPlayers)*100);
+            const timeLeft = formatTime(team.expiresAt);
+            const hasJoined = team.members.some(m=>m.uid===uid);
+            const isCreator = team.creatorUid === uid;
+
+            let membersHTML = '';
+            const showMembers = expandedTeams.has(team.id) ? team.members : team.members.slice(0,3);
+            showMembers.forEach(m => {
+                const rankObj = RANKS.find(r=>r.value===m.rank) || {label:'?'};
+                membersHTML += `<span class="member-chip ${m.uid===team.creatorUid?'leader':''}">${m.uid===team.creatorUid?'👑':''} ${escapeHTML(m.nickname)} <span class="member-rank">${rankObj.label}</span></span>`;
+            });
+            if (!expandedTeams.has(team.id) && team.members.length > 3) {
+                membersHTML += `<span class="member-chip" style="cursor:pointer;color:var(--ow-orange);">+${team.members.length-3} 更多</span>`;
+            }
+
+            let actionBtn = '';
+            if (isMyView) {
+                if (isCreator) actionBtn = `<button class="btn-join joined" disabled>👑 我的车队</button>`;
+                else if (hasJoined) actionBtn = `<button class="btn-join joined" data-action="leave">✓ 已加入</button>`;
+            } else {
+                if (hasJoined) actionBtn = `<button class="btn-join joined" data-action="leave">✓ 已加入</button>`;
+                else if (team.members.length >= team.maxPlayers) actionBtn = `<button class="btn-join" disabled>已满员</button>`;
+                else actionBtn = `<button class="btn-join" data-action="join">加入车队</button>`;
+            }
+
+            card.innerHTML = `
+                <div class="card-header"><span class="team-name">${escapeHTML(team.name)}</span><span class="team-tag ${typeTag.cls}">${typeTag.label}</span></div>
+                <div class="card-meta"><span>👤 ${escapeHTML(team.creatorNickname)}</span><span class="rank-range">${rankStr}</span>${team.notes?`<span style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">💬 ${escapeHTML(team.notes)}</span>`:''}</div>
+                <div class="roles-needed">${rolesHTML}</div>
+                ${membersHTML ? `<div class="member-list">${membersHTML}</div>` : ''}
+                <div class="card-footer">
+                    <div class="progress-wrap"><div class="progress-bar"><div class="progress-fill ${progress>=100?'full':''}" style="width:${progress}%"></div></div><span class="progress-text">${team.members.length}/${team.maxPlayers}</span></div>
+                    <span class="time-left ${timeLeft.urgent?'urgent':''}">⏱ ${timeLeft.text}</span>
+                    ${actionBtn}
+                    <button class="btn-share-card" data-action="share">📋</button>
+                </div>`;
+            return card;
+        }
+
+        function renderTeamLists() {
+            const filtered = getFilteredTeams();
+            renderTeamCards(document.getElementById('teamList'), filtered, false);
+            const myTeams = allTeams.filter(t => t.expiresAt > Date.now() && (t.members.some(m=>m.uid===uid) || t.creatorUid===uid));
+            renderTeamCards(document.getElementById('myTeamList'), myTeams, true);
+        }
+
+        function updateBadge() {
+            const myTeams = allTeams.filter(t => t.expiresAt > Date.now() && (t.members.some(m=>m.uid===uid) || t.creatorUid===uid));
+            const badge = document.getElementById('myTeamsBadge');
+            if (myTeams.length > 0) { badge.style.display='flex'; badge.textContent = myTeams.length; }
+            else { badge.style.display='none'; }
+        }
+
+        function updateTabVisibility() {
+            document.getElementById('teamList').style.display = currentTab==='browse' ? 'flex' : 'none';
+            document.getElementById('myTeamList').style.display = currentTab==='my' ? 'flex' : 'none';
+            document.getElementById('filterBar').style.display = currentTab==='browse' ? 'flex' : 'none';
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab===currentTab));
+        }
+
+        function isUserInRange(team) {
+            const user = loadUser();
+            if (!user || !user.rank) return false;
+            return user.rank >= team.minRank && user.rank <= team.maxRank;
+        }
+
+        function formatRankRange(min, max) {
+            const a = RANKS.find(r=>r.value===min);
+            const b = RANKS.find(r=>r.value===max);
+            if (min===max) return a?.label || '?';
+            return `${a?.label||'?'} ~ ${b?.label||'?'}`;
+        }
+
+        function formatTime(expiresAt) {
+            const diff = expiresAt - Date.now();
+            if (diff <= 0) return {text:'已过期', urgent:true};
+            const mins = Math.floor(diff/60000);
+            if (mins < 1) return {text:'<1分钟', urgent:true};
+            if (mins < 60) return {text:`${mins}分钟`, urgent:mins<10};
+            const h = Math.floor(mins/60);
+            const rm = mins%60;
+            return {text:`${h}小时${rm>0?rm+'分':''}`, urgent:false};
+        }
+
+        function escapeHTML(str) {
+            const d = document.createElement('div');
+            d.textContent = str;
+            return d.innerHTML;
+        }
+
+        function showToast(msg, type='') {
+            const cont = document.getElementById('toastContainer');
+            const t = document.createElement('div');
+            t.className = 'toast ' + type;
+            t.textContent = msg;
+            cont.appendChild(t);
+            setTimeout(() => { if(t.parentNode) t.parentNode.removeChild(t); }, 2200);
+        }
+
+        // ==================== Firestore 操作 ====================
+        async function createTeam(teamData) {
+            try {
+                await teamsCollection.add(teamData);
+                showToast('车队发布成功！', 'success');
+                return true;
+            } catch(e) { showToast('发布失败，请重试', 'warning'); return false; }
+        }
+
+        async function updateMembers(teamId, members) {
+            try { await teamsCollection.doc(teamId).update({ members }); }
+            catch(e) { showToast('操作失败', 'warning'); }
+        }
+
+        async function deleteTeam(teamId) {
+            await teamsCollection.doc(teamId).delete();
+        }
+
+        // ==================== 业务逻辑 ====================
+        async function handleJoin(teamId) {
+            const user = loadUser();
+            if (!user || !user.nickname) { showToast('请先设置个人信息', 'warning'); openSettings(); return; }
+            const team = allTeams.find(t => t.id === teamId);
+            if (!team) return;
+            if (team.expiresAt <= Date.now()) { showToast('车队已过期', 'warning'); return; }
+            if (team.members.length >= team.maxPlayers) { showToast('车队已满员', 'warning'); return; }
+            if (team.members.some(m=>m.uid===uid)) { showToast('已经在车队中', 'warning'); return; }
+            if (user.rank < team.minRank || user.rank > team.maxRank) { showToast('段位不符合要求', 'warning'); return; }
+            const newMembers = [...team.members, { uid, nickname: user.nickname, rank: user.rank, roles: user.roles || [] }];
+            await updateMembers(teamId, newMembers);
+        }
+
+        async function handleLeave(teamId) {
+            const team = allTeams.find(t => t.id === teamId);
+            if (!team) return;
+            if (team.creatorUid === uid) {
+                if (confirm('你是队长，退出将解散车队。确定吗？')) {
+                    await deleteTeam(teamId);
+                    showToast('车队已解散', 'warning');
+                }
+            } else {
+                const newMembers = team.members.filter(m => m.uid !== uid);
+                await updateMembers(teamId, newMembers);
+                showToast('已退出车队', 'success');
+            }
+        }
+
+        function copyTeamInfo(team) {
+            const typeLabel = TAG[team.type]?.label || '竞技';
+            const rank = formatRankRange(team.minRank, team.maxRank);
+            const roles = team.rolesNeeded.map(r=>ROLE_EMOJI[r]+ROLE_NAMES[r]).join('、');
+            const time = formatTime(team.expiresAt);
+            const members = team.members.map(m => `${m.uid===team.creatorUid?'👑':''}${m.nickname}(${RANKS.find(r=>r.value===m.rank)?.label||'?'})`).join('、');
+            const text = `🚗 守望先锋车队招募中！
+🔹 车队：${team.name}
+👤 队长：${team.creatorNickname}
+🏷️ 类型：${typeLabel}
+🎯 段位要求：${rank}
+🛡️ 需要位置：${roles}
+👥 人数：${team.members.length}/${team.maxPlayers}
+👥 成员：${members}
+⏰ 剩余时间：${time.text}
+${team.notes ? `💬 备注：${team.notes}` : ''}
+--- 请打开组队页面加入 ---`;
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).then(()=>showToast('已复制车队信息到剪贴板 📋','success')).catch(()=>fallbackCopy(text));
+            } else fallbackCopy(text);
+        }
+        function fallbackCopy(text) {
+            const ta = document.createElement('textarea'); ta.value = text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta);
+            ta.select(); document.execCommand('copy'); document.body.removeChild(ta); showToast('已复制车队信息 📋','success');
+        }
+
+        // ==================== UI 交互 ====================
+        function openSettings() {
+            const user = loadUser();
+            if (user) {
+                document.getElementById('settingsNickname').value = user.nickname || '';
+                document.getElementById('settingsRank').value = user.rank || RANKS[Math.floor(RANKS.length/2)].value;
+                document.querySelectorAll('#settingsRoles .checkbox-chip').forEach(c => {
+                    c.classList.toggle('selected', user.roles && user.roles.includes(c.dataset.role));
+                });
+            } else {
+                document.getElementById('settingsNickname').value = '';
+                document.getElementById('settingsRank').value = RANKS[Math.floor(RANKS.length/2)].value;
+                document.querySelectorAll('#settingsRoles .checkbox-chip').forEach(c => c.classList.add('selected'));
+            }
+            document.getElementById('modalSettings').style.display = 'flex';
+        }
+
+        document.getElementById('userBar').addEventListener('click', openSettings);
+        document.getElementById('btnCancelSettings').addEventListener('click', ()=>document.getElementById('modalSettings').style.display='none');
+        document.getElementById('settingsForm').addEventListener('submit', (e)=>{
+            e.preventDefault();
+            const nickname = document.getElementById('settingsNickname').value.trim();
+            if (!nickname) { showToast('请输入昵称','warning'); return; }
+            const rank = parseInt(document.getElementById('settingsRank').value);
+            const roles = [];
+            document.querySelectorAll('#settingsRoles .checkbox-chip.selected').forEach(c=>roles.push(c.dataset.role));
+            if (roles.length===0) { showToast('请至少选一个位置','warning'); return; }
+            saveUser({ nickname, rank, roles, uid });
+            document.getElementById('modalSettings').style.display = 'none';
+            updateUserDisplay();
+            renderAll();
+            showToast('设置已保存 ✓','success');
+        });
+        document.getElementById('modalSettings').addEventListener('click', function(e){ if(e.target===this) this.style.display='none'; });
+
+        function updateUserDisplay() {
+            const user = loadUser();
+            if (user) {
+                document.getElementById('displayNickname').textContent = user.nickname;
+                const rankObj = RANKS.find(r=>r.value===user.rank) || {label:'?'};
+                const rolesStr = user.roles.map(r=>ROLE_EMOJI[r]+ROLE_NAMES[r]).join(' ');
+                document.getElementById('displayDetail').innerHTML = `<span>${rankObj.label}</span><span>${rolesStr}</span>`;
+            } else {
+                document.getElementById('displayNickname').textContent = '点击设置昵称';
+                document.getElementById('displayDetail').innerHTML = '<span>设置段位</span><span>常用位置</span>';
+            }
+        }
+
+        // 创建车队弹窗
+        document.getElementById('fabCreate').addEventListener('click', ()=>{
+            const user = loadUser();
+            if (!user || !user.nickname) { showToast('请先设置个人段位','warning'); openSettings(); return; }
+            document.getElementById('teamName').value = '';
+            document.getElementById('minRank').value = String(Math.max(1, user.rank-6));
+            document.getElementById('maxRank').value = String(Math.min(36, user.rank+6));
+            document.querySelectorAll('#roleCheckboxes .checkbox-chip').forEach(c=>c.classList.add('selected'));
+            document.getElementById('modalCreate').style.display = 'flex';
+        });
+        document.getElementById('btnCancelCreate').addEventListener('click', ()=>document.getElementById('modalCreate').style.display='none');
+        document.getElementById('modalCreate').addEventListener('click', function(e){ if(e.target===this) this.style.display='none'; });
+        document.getElementById('createForm').addEventListener('submit', async (e)=>{
+            e.preventDefault();
+            const user = loadUser();
+            if (!user) { showToast('请先设置个人信息','warning'); return; }
+            const name = document.getElementById('teamName').value.trim();
+            if (!name) { showToast('请输入车队名','warning'); return; }
+            const type = document.getElementById('teamType').value;
+            const minRank = parseInt(document.getElementById('minRank').value);
+            const maxRank = parseInt(document.getElementById('maxRank').value);
+            if (minRank > maxRank) { showToast('段位范围错误','warning'); return; }
+            const rolesNeeded = [];
+            document.querySelectorAll('#roleCheckboxes .checkbox-chip.selected').forEach(c=>rolesNeeded.push(c.dataset.role));
+            if (rolesNeeded.length===0) { showToast('请选择至少一个位置','warning'); return; }
+            const maxPlayers = parseInt(document.getElementById('maxPlayers').value);
+            const duration = parseInt(document.getElementById('duration').value);
+            const notes = document.getElementById('notes').value.trim();
+
+            const teamData = {
+                name, type, creatorUid: uid, creatorNickname: user.nickname,
+                minRank, maxRank, rolesNeeded, maxPlayers,
+                members: [{ uid, nickname: user.nickname, rank: user.rank, roles: user.roles }],
+                notes, createdAt: Date.now(), expiresAt: Date.now() + duration*60000
+            };
+            const success = await createTeam(teamData);
+            if (success) {
+                document.getElementById('modalCreate').style.display = 'none';
+                // 自动复制车队信息
+                setTimeout(() => {
+                    const created = allTeams.find(t => t.creatorUid===uid && t.name===name && t.createdAt===teamData.createdAt);
+                    if (created) copyTeamInfo(created);
+                }, 500);
+            }
+        });
+
+        // 卡片点击委托
+        document.getElementById('app').addEventListener('click', (e)=>{
+            const card = e.target.closest('.team-card');
+            if (!card) return;
+            const teamId = card.dataset.teamId;
+            // 加入/退出
+            const btn = e.target.closest('[data-action]');
+            if (btn) {
+                if (btn.dataset.action === 'join') handleJoin(teamId);
+                else if (btn.dataset.action === 'leave') handleLeave(teamId);
+                else if (btn.dataset.action === 'share') {
+                    const team = allTeams.find(t=>t.id===teamId);
+                    if (team) copyTeamInfo(team);
+                }
+                return;
+            }
+            // 展开成员
+            if (e.target.closest('.member-chip') && e.target.textContent.includes('更多')) {
+                expandedTeams.has(teamId) ? expandedTeams.delete(teamId) : expandedTeams.add(teamId);
+                renderAll();
+            } else if (!e.target.closest('button')) {
+                expandedTeams.has(teamId) ? expandedTeams.delete(teamId) : expandedTeams.add(teamId);
+                renderAll();
+            }
+        });
+
+        // 标签切换
+        document.querySelectorAll('.tab-btn').forEach(btn=>{
+            btn.addEventListener('click', ()=>{
+                currentTab = btn.dataset.tab;
+                updateTabVisibility();
+                renderAll();
+            });
+        });
+        document.getElementById('btnMyTeams').addEventListener('click', ()=>{
+            currentTab = 'my';
+            updateTabVisibility();
+            renderAll();
+        });
+
+        // 筛选
+        document.getElementById('filterRank').addEventListener('change', function(){ filterRank = this.value; renderAll(); });
+        document.querySelectorAll('#filterBar .filter-chip[data-role]').forEach(chip=>{
+            chip.addEventListener('click', function(){
+                const role = this.dataset.role;
+                if (filterRoles.has(role)) { filterRoles.delete(role); this.classList.remove('active'); }
+                else { filterRoles.add(role); this.classList.add('active'); }
+                renderAll();
+            });
+        });
+        document.getElementById('filterClear').addEventListener('click', ()=>{
+            filterRank = '';
+            filterRoles.clear();
+            document.getElementById('filterRank').value = '';
+            document.querySelectorAll('#filterBar .filter-chip[data-role]').forEach(c=>c.classList.remove('active'));
+            renderAll();
+        });
+
+        // 弹窗内角色选择
+        document.querySelectorAll('.checkbox-chip').forEach(chip=>{
+            chip.addEventListener('click', function(){ this.classList.toggle('selected'); });
+        });
+
+        // 初始化下拉列表
+        function populateSelects() {
+            const selectIds = ['filterRank', 'minRank', 'maxRank', 'settingsRank'];
+            selectIds.forEach(id => {
+                const sel = document.getElementById(id);
+                if (!sel) return;
+                sel.innerHTML = '';
+                if (id === 'filterRank') sel.innerHTML += '<option value="">全部段位</option>';
+                RANKS.forEach(r => {
+                    const opt = document.createElement('option');
+                    opt.value = r.value;
+                    opt.textContent = r.label;
+                    sel.appendChild(opt);
+                });
+                if (id === 'settingsRank') sel.value = loadUser()?.rank || RANKS[Math.floor(RANKS.length/2)].value;
+                if (id === 'minRank') sel.value = sel.value || '11';
+                if (id === 'maxRank') sel.value = sel.value || '25';
+            });
+        }
+
+        // 启动
+        function init() {
+            populateSelects();
+            updateUserDisplay();
+            subscribe(); // 开始监听数据
+            // 定期清理过期车队（可选，减少存储）
+            setInterval(() => {
+                allTeams.forEach(async team => {
+                    if (team.expiresAt < Date.now() - 30*60000) {
+                        await teamsCollection.doc(team.id).delete();
+                    }
+                });
+            }, 60000);
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
