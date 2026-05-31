@@ -4,9 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>OW车队 - 守望先锋组队助手</title>
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <!-- Bmob SDK -->
+    <script src="https://cdn.bmob.cn/bmob-5.2.2.min.js"></script>
     <style>
         :root {
             --bg: #1a1a2e;
@@ -157,13 +156,10 @@
 </head>
 <body>
 <div class="app-container" id="app">
-    <!-- Header -->
     <header class="header">
         <div class="header-logo">⚡</div>
         <div><div class="header-title">OW车队</div><div class="header-subtitle">守望先锋组队助手</div></div>
-        <div class="header-actions">
-            <button class="btn-icon" id="btnMyTeams">👤<span class="badge" id="myTeamsBadge" style="display:none">0</span></button>
-        </div>
+        <div class="header-actions"><button class="btn-icon" id="btnMyTeams">👤<span class="badge" id="myTeamsBadge" style="display:none">0</span></button></div>
     </header>
 
     <div class="user-bar" id="userBar">
@@ -199,20 +195,12 @@
         <div class="modal-title">🚗 创建车队</div>
         <form id="createForm" autocomplete="off">
             <div class="form-group"><label class="form-label">车队名称</label><input class="form-input" id="teamName" placeholder="如：快乐上分队" maxlength="20" required></div>
-            <div class="form-group"><label class="form-label">游戏模式</label>
-                <select class="form-select" id="teamType">
-                    <option value="ranked">🏆 竞技</option>
-                    <option value="quick">⚡ 快速</option>
-                    <option value="arena">🗡️ 角斗领域</option>
-                    <option value="fun">🎉 娱乐</option>
-                    <option value="custom">🛠️ 自定义</option>
-                </select>
-            </div>
+            <div class="form-group"><label class="form-label">游戏模式</label><select class="form-select" id="teamType"><option value="ranked">🏆 竞技</option><option value="quick">⚡ 快速</option><option value="arena">🗡️ 角斗领域</option><option value="fun">🎉 娱乐</option><option value="custom">🛠️ 自定义</option></select></div>
             <div class="form-group"><label class="form-label">你的战网ID</label><input class="form-input" id="battleTag" placeholder="如：Player#1234" maxlength="30"></div>
             <div class="form-group"><label class="form-label">段位范围</label><div style="display:flex; gap:8px;"><select class="form-select" id="minRank"></select><span style="color:var(--text-muted);align-self:center;">至</span><select class="form-select" id="maxRank"></select></div></div>
             <div class="form-group"><label class="form-label">需要位置</label><div class="checkbox-group" id="roleCheckboxes"><span class="checkbox-chip role-tank selected" data-role="tank">🛡️ T</span><span class="checkbox-chip role-dps selected" data-role="dps">⚔️ C</span><span class="checkbox-chip role-support selected" data-role="support">💚 奶</span></div></div>
             <div class="form-group"><label class="form-label">车队总人数</label><select class="form-select" id="maxPlayers"><option value="2">2人</option><option value="3">3人</option><option value="4">4人</option><option value="5" selected>5人</option><option value="6">6人</option></select></div>
-            <div class="form-group"><label class="form-label">当前队伍已有几人（含你）</label><select class="form-select" id="presetPlayers"><option value="1" selected>1人（仅我自己）</option></select></div>
+            <div class="form-group"><label class="form-label">当前队伍已有几人（含你）</label><select class="form-select" id="presetPlayers"><option value="1" selected>1人</option></select></div>
             <div class="form-group"><label class="form-label">有效时间</label><select class="form-select" id="duration"><option value="15">15分钟</option><option value="30">30分钟</option><option value="60" selected>60分钟</option><option value="120">2小时</option><option value="240">4小时</option></select></div>
             <div class="form-group"><label class="form-label">备注</label><textarea class="form-textarea" id="notes" placeholder="如：已有3人缺奶位…" maxlength="200"></textarea></div>
             <button type="submit" class="btn-submit">🚀 发布车队</button>
@@ -240,18 +228,8 @@
 <div id="toastContainer"></div>
 
 <script>
-    // ==================== Firebase ====================
-    const firebaseConfig = {
-        apiKey: "AIzaSyAdzd0sRdGWo0H4BUEZYt0yKraBZxEW-fE",
-        authDomain: "ow-team-ce6b5.firebaseapp.com",
-        projectId: "ow-team-ce6b5",
-        storageBucket: "ow-team-ce6b5.firebasestorage.app",
-        messagingSenderId: "592197942637",
-        appId: "1:592197942637:web:21e38c7ec39d7ff153ae64"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-    const teamsCollection = db.collection('teams');
+    // ==================== Bmob 初始化 ====================
+    Bmob.initialize("35e8c35c97b88dd8349a0f5732f97b11", "5ace139055903a39bd7a230c48af7b4a");
 
     // ==================== 常量 ====================
     const RANKS = [
@@ -285,21 +263,48 @@
     function saveUser(u) { localStorage.setItem(USER_KEY, JSON.stringify(u)); }
     const uid = getUid();
 
-    // ==================== 状态 ====================
     let currentTab = 'browse';
     let filterRank = '';
     let filterRoles = new Set();
     let expanded = new Set();
     let allTeams = [];
 
-    function subscribe() {
-        return teamsCollection.orderBy('createdAt','desc').onSnapshot(snap => {
-            allTeams = [];
-            snap.forEach(d => allTeams.push({id:d.id, ...d.data()}));
+    // ---------- Bmob 数据操作 ----------
+    async function fetchAllTeams() {
+        try {
+            const query = Bmob.Query('Team');
+            query.order('-createdAt');
+            const res = await query.find();
+            allTeams = res.map(obj => { return { id: obj.objectId, ...obj.attributes }; });
             renderAll();
             updateBadge();
-        });
+        } catch(e) {
+            console.error('获取车队失败', e);
+        }
     }
+
+    async function createTeam(data) {
+        const TeamObj = Bmob.Query('Team');
+        const team = TeamObj.create(data);
+        await team.save();
+        fetchAllTeams(); // 立即刷新
+    }
+
+    async function updateTeam(id, updateData) {
+        const team = Bmob.Query('Team').object(id);
+        Object.keys(updateData).forEach(key => team.set(key, updateData[key]));
+        await team.save();
+        fetchAllTeams();
+    }
+
+    async function deleteTeam(id) {
+        const team = Bmob.Query('Team').object(id);
+        await team.destroy();
+        fetchAllTeams();
+    }
+
+    // 轮询实时同步（每4秒刷新）
+    setInterval(fetchAllTeams, 4000);
 
     function getFiltered() {
         return allTeams.filter(t => t.expiresAt > Date.now()).filter(t => {
@@ -314,13 +319,13 @@
         document.getElementById('myTeamList').innerHTML = '';
         const filtered = getFiltered();
         renderCards(document.getElementById('teamList'), filtered, false);
-        const my = allTeams.filter(t=>t.expiresAt>Date.now() && (t.members.some(m=>m.uid===uid)||t.creatorUid===uid));
+        const my = allTeams.filter(t=>t.expiresAt>Date.now() && (t.members.some(m=>m.uid===uid) || t.creatorUid===uid));
         renderCards(document.getElementById('myTeamList'), my, true);
         updateTabVisibility();
     }
 
     function renderCards(container, teams, isMy) {
-        if (teams.length===0) {
+        if (!teams.length) {
             container.innerHTML = '<div class="empty-state"><div class="icon">🚗</div><div class="text">暂无车队</div></div>';
             return;
         }
@@ -394,11 +399,6 @@
         document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===currentTab));
     }
 
-    // ==================== Firestore 操作 ====================
-    async function createTeam(data) { await teamsCollection.add(data); }
-    async function updateTeam(id, data) { await teamsCollection.doc(id).update(data); }
-    async function removeTeam(id) { await teamsCollection.doc(id).delete(); }
-
     // 加入
     async function join(teamId) {
         const user = loadUser();
@@ -409,10 +409,9 @@
         if (team.members.some(m=>m.uid===uid)) return;
         if (user.rank<team.minRank||user.rank>team.maxRank) { showToast('段位不符','warning'); return; }
         const newMems = [...team.members, {uid, nickname:user.nickname, rank:user.rank, roles:user.roles}];
-        // 加入后自动对齐预设人数
         await updateTeam(teamId, { members: newMems, presetCount: newMems.length });
     }
-
+    // 退出
     async function leave(teamId) {
         const team = allTeams.find(t=>t.id===teamId);
         if (!team) return;
@@ -420,9 +419,9 @@
         const newMems = team.members.filter(m=>m.uid!==uid);
         await updateTeam(teamId, { members: newMems, presetCount: newMems.length });
     }
-
-    async function deleteTeam(teamId) {
-        if (confirm('确定解散这个车队吗？')) await removeTeam(teamId);
+    // 删除
+    async function removeTeam(teamId) {
+        if (confirm('确定解散这个车队吗？')) await deleteTeam(teamId);
     }
 
     function copyBtag(btag) {
@@ -437,14 +436,7 @@
         const time = formatTime(team.expiresAt);
         const members = team.members.map(m=>`${m.uid===team.creatorUid?'👑':''}${m.nickname}(${RANKS.find(r=>r.value===m.rank)?.label})`).join('、');
         const btag = team.battleTag ? `\n🎮 战网ID：${team.battleTag}` : '';
-        const text = `🚗 ${team.name} | ${type}
-👤 队长：${team.creatorNickname}${btag}
-🎯 段位：${rank}
-🛡️ 位置：${roles}
-👥 人数：${Math.max(team.members.length,team.presetCount||0)}/${team.maxPlayers}
-👥 成员：${members}
-⏰ 剩余：${time.text}
-${team.notes?`💬 ${team.notes}`:''}`;
+        const text = `🚗 ${team.name} | ${type}\n👤 队长：${team.creatorNickname}${btag}\n🎯 段位：${rank}\n🛡️ 位置：${roles}\n👥 人数：${Math.max(team.members.length,team.presetCount||0)}/${team.maxPlayers}\n👥 成员：${members}\n⏰ 剩余：${time.text}\n${team.notes?`💬 ${team.notes}`:''}`;
         navigator.clipboard?.writeText(text).then(()=>showToast('已复制车队信息','success')).catch(()=>fallbackCopy(text));
     }
 
@@ -454,7 +446,7 @@ ${team.notes?`💬 ${team.notes}`:''}`;
         c.appendChild(t); setTimeout(()=>t.remove(),2200);
     }
 
-    // ==================== UI事件 ====================
+    // ==================== 事件绑定 ====================
     document.getElementById('app').addEventListener('click', e => {
         const card = e.target.closest('.team-card');
         if (!card) return;
@@ -464,7 +456,7 @@ ${team.notes?`💬 ${team.notes}`:''}`;
             const act = btn.dataset.action;
             if (act==='join') join(tid);
             else if (act==='leave') leave(tid);
-            else if (act==='delete') deleteTeam(tid);
+            else if (act==='delete') removeTeam(tid);
             else if (act==='share') { const team=allTeams.find(t=>t.id===tid); if(team) shareTeam(team); }
             else if (act==='copyBtag') { const team=allTeams.find(t=>t.id===tid); if(team?.battleTag) copyBtag(team.battleTag); }
             return;
@@ -478,7 +470,7 @@ ${team.notes?`💬 ${team.notes}`:''}`;
         }
     });
 
-    // 标签
+    // 标签切换
     document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click', ()=>{
         currentTab = b.dataset.tab; renderAll();
     }));
@@ -524,7 +516,6 @@ ${team.notes?`💬 ${team.notes}`:''}`;
         showToast('已保存','success');
     });
     document.getElementById('modalSettings').addEventListener('click', function(e){ if(e.target===this) this.style.display='none'; });
-
     function updateUserDisplay() {
         const u = loadUser();
         if(u) {
@@ -535,7 +526,7 @@ ${team.notes?`💬 ${team.notes}`:''}`;
         }
     }
 
-    // 创建弹窗
+    // 创建车队弹窗
     document.getElementById('fabCreate').addEventListener('click', ()=>{
         const u = loadUser();
         if(!u?.nickname) { showToast('请先设置个人资料','warning'); openSettings(); return; }
@@ -571,14 +562,14 @@ ${team.notes?`💬 ${team.notes}`:''}`;
         const dur = +document.getElementById('duration').value;
         const notes = document.getElementById('notes').value.trim();
 
-        const team = {
+        const teamData = {
             name, type, battleTag, creatorUid: uid, creatorNickname: u.nickname,
             minRank: minR, maxRank: maxR, rolesNeeded: roles, maxPlayers: maxP,
             presetCount: preset,
             members: [{ uid, nickname: u.nickname, rank: u.rank, roles: u.roles }],
-            notes, createdAt: Date.now(), expiresAt: Date.now()+dur*60000
+            notes, createdAt: new Date(), expiresAt: new Date(Date.now() + dur*60000)
         };
-        await createTeam(team);
+        await createTeam(teamData);
         document.getElementById('modalCreate').style.display = 'none';
         showToast('车队已发布！','success');
     });
@@ -597,13 +588,11 @@ ${team.notes?`💬 ${team.notes}`:''}`;
         updatePresetOptions();
     }
 
+    // 启动
     function init() {
         populateSelects();
         updateUserDisplay();
-        subscribe();
-        setInterval(()=>{
-            allTeams.forEach(async t=>{ if(t.expiresAt < Date.now()-1800000) await removeTeam(t.id); });
-        },60000);
+        fetchAllTeams(); // 第一次拉取
     }
     document.addEventListener('DOMContentLoaded', init);
 </script>
