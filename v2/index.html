@@ -163,7 +163,7 @@
         .filter-chip {
             padding: 9px 16px; border-radius: 24px; border: 1px solid rgba(255,255,255,0.15);
             background: var(--bg-card); backdrop-filter: blur(10px); color: var(--text-secondary);
-            font-size: 13px; cursor: pointer; font-weight: 600;
+            font-size: 13px; cursor: pointer; font-weight: 600; white-space: nowrap;
         }
         .filter-chip.active { background: var(--ow-orange); border-color: var(--ow-orange); color: #1a1a2e; }
         .filter-clear { margin-left: auto; font-size: 12px; color: var(--ow-orange); cursor: pointer; font-weight: 600; }
@@ -195,7 +195,10 @@
         .tag-custom{ background: var(--custom-bg); color: var(--custom); border-color: var(--custom); }
 
         .card-meta { display: flex; gap: 10px; font-size: 12px; color: var(--text-muted); margin-bottom: 10px; flex-wrap: wrap; }
-        .rank-range { font-weight: 700; color: var(--ow-orange); background: rgba(249,158,26,0.15); padding: 4px 12px; border-radius: 12px; }
+        .rank-range {
+            font-weight: 700; color: var(--ow-orange); background: rgba(249,158,26,0.15);
+            padding: 4px 12px; border-radius: 12px; display: inline-flex; align-items: center; gap: 4px;
+        }
         .roles-needed { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
         .role-badge { padding: 6px 14px; border-radius: 16px; font-size: 12px; font-weight: 700; }
         .role-badge.tank { background: var(--tank-bg); color: #6db3f0; }
@@ -431,6 +434,15 @@
         render();
     };
 
+    // 显示段位文字，若模式不限段位或全范围则返回「不限段位」
+    const getRankDisplay = (team) => {
+        const isRankedMode = (team.type === 'competitive' || team.type === 'arena');
+        if (!isRankedMode && team.minRank <= 1 && team.maxRank >= 36) {
+            return '不限段位';
+        }
+        return formatRank(team.minRank, team.maxRank);
+    };
+
     const render = () => {
         const activeList = teamsCache.filter(t => t.expiresAt > Date.now());
         let filtered = activeList;
@@ -456,7 +468,6 @@
                 card.dataset.id = team.objectId;
                 const typeTag = TYPE_TAGS[team.type] || TYPE_TAGS.competitive;
                 const rolesHTML = (team.rolesNeeded||[]).map(r=>`<span class="role-badge ${r}">${ROLE_EMOJI[r]}${ROLE_NAMES[r]}</span>`).join('');
-                // 进度条使用 claimedMembers（保证至少为 members.length 防止数据异常）
                 const displayCount = Math.max(team.claimedMembers || team.members.length, team.members.length);
                 const progressPercent = Math.min(100, Math.round((displayCount / team.maxPlayers) * 100));
                 let membersHTML = '';
@@ -482,7 +493,7 @@
                     </div>`;
                 card.innerHTML = `
                     <div class="card-header"><span class="team-name">${escHTML(team.name)}</span><span class="team-tag ${typeTag.class}">${typeTag.label}</span></div>
-                    <div class="card-meta"><span>👤${escHTML(team.creatorNickname)}</span><span class="rank-range">${formatRank(team.minRank,team.maxRank)}</span></div>
+                    <div class="card-meta"><span>👤${escHTML(team.creatorNickname)}</span><span class="rank-range">${getRankDisplay(team)}</span></div>
                     <div class="roles-needed">${rolesHTML}</div>
                     <div style="font-size:12px;color:var(--text-muted);margin:8px 0;">👥 已有${displayCount}人，差${team.maxPlayers - displayCount}人</div>
                     ${membersHTML ? `<div class="member-list">${membersHTML}</div>` : ''}
@@ -553,7 +564,7 @@
     const copyTeamInfo = (team) => {
         const type = TYPE_TAGS[team.type]?.label || '竞技';
         const count = Math.max(team.claimedMembers || team.members.length, team.members.length);
-        const text = `🚗 守望先锋车队\n名称：${team.name}\n模式：${type}\n段位：${formatRank(team.minRank,team.maxRank)}\n位置：${(team.rolesNeeded||[]).map(r=>ROLE_EMOJI[r]+ROLE_NAMES[r]).join('、')}\n人数：${count}/${team.maxPlayers}\n${team.battlenetId ? '战网：'+team.battlenetId+'\n' : ''}队长：${team.creatorNickname}`;
+        const text = `🚗 守望先锋车队\n名称：${team.name}\n模式：${type}\n段位：${getRankDisplay(team)}\n位置：${(team.rolesNeeded||[]).map(r=>ROLE_EMOJI[r]+ROLE_NAMES[r]).join('、')}\n人数：${count}/${team.maxPlayers}\n${team.battlenetId ? '战网：'+team.battlenetId+'\n' : ''}队长：${team.creatorNickname}`;
         navigator.clipboard?.writeText(text).then(()=>toast('已复制车队信息','success')).catch(()=>toast('复制失败','warning'));
     };
     const copyBnet = (bnetId) => {
@@ -598,8 +609,8 @@
         const u = loadUser();
         if (!u?.nickname) { openSettings(); return; }
         $('#teamName').value = '';
-        $('#minRank').value = Math.max(1, u.rank-6).toString();
-        $('#maxRank').value = Math.min(36, u.rank+6).toString();
+        const type = $('#teamType').value;
+        setDefaultRanks(type);
         $('#maxPlayers').value = '5'; $('#claimedMembers').value = '1';
         $('#battlenetId').value = u?.battlenetId || '';
         $('#duration').value = '15'; $('#notes').value = '';
@@ -607,6 +618,17 @@
         $$('#roleCheckboxes .checkbox-chip').forEach(c => c.classList.add('selected'));
         updateNeed();
         $('#modalCreate').style.display = 'flex';
+    };
+    const setDefaultRanks = (type) => {
+        const u = loadUser();
+        if (type === 'competitive' || type === 'arena') {
+            $('#minRank').value = Math.max(1, (u?.rank||15) - 6).toString();
+            $('#maxRank').value = Math.min(36, (u?.rank||15) + 6).toString();
+        } else {
+            // 非竞技/角斗领域默认不限段位
+            $('#minRank').value = '0';
+            $('#maxRank').value = '0';
+        }
     };
     const closeCreate = () => $('#modalCreate').style.display = 'none';
     const updateNeed = () => {
@@ -624,13 +646,19 @@
         if (!u?.nickname) { openSettings(); return; }
         const name = $('#teamName').value.trim();
         if (!name) return toast('输入名称','warning');
-        const minRank = parseInt($('#minRank').value);
-        const maxRank = parseInt($('#maxRank').value);
+        const type = $('#teamType').value;
+        let minRank = parseInt($('#minRank').value);
+        let maxRank = parseInt($('#maxRank').value);
+        // 如果选择了“不限段位”（值为0），转换为全范围1-36
+        if (minRank === 0 || maxRank === 0) {
+            minRank = 1;
+            maxRank = 36;
+        }
         if (minRank > maxRank) return toast('段位范围错误','warning');
         const roles = []; $$('#roleCheckboxes .checkbox-chip.selected').forEach(c => roles.push(c.dataset.role));
         if (!roles.length) return toast('至少选一个位置','warning');
         const payload = {
-            name, type: $('#teamType').value, creatorUid: uid, creatorNickname: u.nickname,
+            name, type, creatorUid: uid, creatorNickname: u.nickname,
             minRank, maxRank, rolesNeeded: roles,
             maxPlayers: parseInt($('#maxPlayers').value),
             claimedMembers: parseInt($('#claimedMembers').value),
@@ -648,6 +676,7 @@
     };
     $('#btnCancelCreate').onclick = closeCreate;
     $('#modalCreate').addEventListener('click', e=> { if(e.target===e.currentTarget) closeCreate(); });
+    $('#teamType').addEventListener('change', e => setDefaultRanks(e.target.value));
     $('#userBar').onclick = openSettings;
     $('#settingsForm').onsubmit = saveSettings;
     $('#btnCancelSettings').onclick = closeSettings;
@@ -672,7 +701,7 @@
     };
     document.addEventListener('keydown', e => { if (e.key==='Escape') { closeCreate(); closeSettings(); } });
 
-    // 全局事件：按钮操作
+    // 全局按钮事件
     document.addEventListener('click', e => {
         const actBtn = e.target.closest('[data-act]');
         if (!actBtn) return;
@@ -690,7 +719,7 @@
         }
     });
 
-    // 卡片展开/折叠（非按钮区域）
+    // 卡片展开
     document.addEventListener('click', e => {
         const card = e.target.closest('.team-card');
         if (!card) return;
@@ -701,14 +730,20 @@
     });
 
     const initRanks = () => {
-        ['filterRank','minRank','maxRank','settingsRank'].forEach(id => {
+        // 为创建表单的段位下拉增加“不限段位”选项
+        ['minRank','maxRank'].forEach(id => {
+            const sel = document.getElementById(id);
+            if (!sel) return;
+            sel.innerHTML = '<option value="0">不限段位</option>';
+            RANKS.forEach(r => sel.add(new Option(r.label, r.value)));
+        });
+        // 其他段位下拉保持不变（筛选/设置不要不限段位，因为设置必须选段位）
+        ['filterRank','settingsRank'].forEach(id => {
             const sel = document.getElementById(id);
             if (!sel) return;
             sel.innerHTML = id==='filterRank' ? '<option value="">全部段位</option>' : '';
             RANKS.forEach(r => sel.add(new Option(r.label, r.value)));
         });
-        if (!$('#minRank').value) $('#minRank').value = '11';
-        if (!$('#maxRank').value) $('#maxRank').value = '25';
     };
 
     (async () => {
