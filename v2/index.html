@@ -434,7 +434,6 @@
         render();
     };
 
-    // 显示段位文字，若模式不限段位或全范围则返回「不限段位」
     const getRankDisplay = (team) => {
         const isRankedMode = (team.type === 'competitive' || team.type === 'arena');
         if (!isRankedMode && team.minRank <= 1 && team.maxRank >= 36) {
@@ -442,6 +441,47 @@
         }
         return formatRank(team.minRank, team.maxRank);
     };
+
+    // 获取当前用户所在的第一个未过期的车队（包括作为队长或成员）
+    const getCurrentTeam = () => {
+        return teamsCache.find(t => t.expiresAt > Date.now() && (t.creatorUid === uid || t.members.some(m => m.uid === uid)));
+    };
+
+    // 退出当前车队（如果是队长则解散，否则仅移除自己）
+    const leaveCurrentTeam = async (team) => {
+        if (!team) return;
+        if (team.creatorUid === uid) {
+            // 队长退出 = 解散车队
+            await bmob(`${BASE_URL}/${team.objectId}`, {method:'DELETE'});
+        } else {
+            const newMembers = team.members.filter(m => m.uid !== uid);
+            const newClaimed = Math.max(newMembers.length, (team.claimedMembers || 1) - 1);
+            await bmob(`${BASE_URL}/${team.objectId}`, {method:'PUT', body: JSON.stringify({members: newMembers, claimedMembers: newClaimed})});
+        }
+    };
+
+    // 询问并处理“是否退出当前车队”
+    const confirmAndLeaveCurrentTeam = async (actionDesc) => {
+        const currentTeam = getCurrentTeam();
+        if (!currentTeam) return true; // 没有车队，直接继续
+        const msg = currentTeam.creatorUid === uid
+            ? `你当前是「${currentTeam.name}」的队长，${actionDesc}将自动解散当前车队。确定吗？`
+            : `你当前已加入「${currentTeam.name}」，${actionDesc}将自动退出。确定吗？`;
+        const ok = await showConfirm(msg);
+        if (!ok) return false;
+        await leaveCurrentTeam(currentTeam);
+        return true;
+    };
+
+    const showConfirm = (msg) => new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay'; overlay.style.zIndex = '300';
+        overlay.innerHTML = `<div class="modal-sheet" style="border-radius:24px;max-width:320px;padding:24px;"><p style="font-size:16px;font-weight:600;text-align:center;margin-bottom:20px;">${msg}</p><div style="display:flex;gap:12px;"><button class="btn-submit" id="cfmYes">确定</button><button class="btn-cancel" id="cfmNo">取消</button></div></div>`;
+        document.body.appendChild(overlay);
+        overlay.querySelector('#cfmYes').onclick = () => { overlay.remove(); resolve(true); };
+        overlay.querySelector('#cfmNo').onclick = () => { overlay.remove(); resolve(false); };
+        overlay.addEventListener('click', e => { if (e.target === overlay) { overlay.remove(); resolve(false); } });
+    });
 
     const render = () => {
         const activeList = teamsCache.filter(t => t.expiresAt > Date.now());
@@ -531,6 +571,11 @@
         if (!team || team.expiresAt<=Date.now()) { await refresh(); toast('已过期','warning'); return; }
         if (team.members.length >= team.maxPlayers) { toast('满员','warning'); return; }
         if (user.rank < team.minRank || user.rank > team.maxRank) { toast('段位不符','warning'); return; }
+
+        // 检查是否已有车队，若有则提示退出
+        const canProceed = await confirmAndLeaveCurrentTeam('加入新车队将');
+        if (!canProceed) return;
+
         try {
             const newMembers = [...team.members, {uid, nickname:user.nickname, rank:user.rank, roles:user.roles||[]}];
             const newClaimed = Math.min(team.maxPlayers, (team.claimedMembers || 1) + 1);
@@ -539,6 +584,7 @@
             toast('加入成功','success');
         } catch (e) { toast('操作失败','warning'); console.error(e); }
     };
+
     const leaveTeam = async (id) => {
         const team = teamsCache.find(t=>t.objectId===id);
         if (!team) return;
@@ -556,11 +602,13 @@
             } catch (e) { toast('失败','warning'); console.error(e); }
         }
     };
+
     const deleteTeam = async (id) => {
         const ok = await showConfirm('确定解散车队？');
         if (!ok) return;
         try { await bmob(`${BASE_URL}/${id}`, {method:'DELETE'}); await refresh(); toast('已解散','warning'); } catch (e) { toast('失败','warning'); console.error(e); }
     };
+
     const copyTeamInfo = (team) => {
         const type = TYPE_TAGS[team.type]?.label || '竞技';
         const count = Math.max(team.claimedMembers || team.members.length, team.members.length);
@@ -570,15 +618,6 @@
     const copyBnet = (bnetId) => {
         navigator.clipboard?.writeText(bnetId).then(()=>toast('战网ID已复制','success')).catch(()=>toast('复制失败','warning'));
     };
-    const showConfirm = (msg) => new Promise(resolve => {
-        const overlay = document.createElement('div');
-        overlay.className = 'modal-overlay'; overlay.style.zIndex = '300';
-        overlay.innerHTML = `<div class="modal-sheet" style="border-radius:24px;max-width:320px;padding:24px;"><p style="font-size:16px;font-weight:600;text-align:center;margin-bottom:20px;">${msg}</p><div style="display:flex;gap:12px;"><button class="btn-submit" id="cfmYes">确定</button><button class="btn-cancel" id="cfmNo">取消</button></div></div>`;
-        document.body.appendChild(overlay);
-        overlay.querySelector('#cfmYes').onclick = () => { overlay.remove(); resolve(true); };
-        overlay.querySelector('#cfmNo').onclick = () => { overlay.remove(); resolve(false); };
-        overlay.addEventListener('click', e => { if (e.target === overlay) { overlay.remove(); resolve(false); } });
-    });
 
     const openSettings = () => {
         const u = loadUser();
@@ -625,7 +664,6 @@
             $('#minRank').value = Math.max(1, (u?.rank||15) - 6).toString();
             $('#maxRank').value = Math.min(36, (u?.rank||15) + 6).toString();
         } else {
-            // 非竞技/角斗领域默认不限段位
             $('#minRank').value = '0';
             $('#maxRank').value = '0';
         }
@@ -644,12 +682,16 @@
         e.preventDefault();
         const u = loadUser();
         if (!u?.nickname) { openSettings(); return; }
+
+        // 创建前检查并提示是否需要退出当前车队
+        const canProceed = await confirmAndLeaveCurrentTeam('创建新车队将');
+        if (!canProceed) return;
+
         const name = $('#teamName').value.trim();
         if (!name) return toast('输入名称','warning');
         const type = $('#teamType').value;
         let minRank = parseInt($('#minRank').value);
         let maxRank = parseInt($('#maxRank').value);
-        // 如果选择了“不限段位”（值为0），转换为全范围1-36
         if (minRank === 0 || maxRank === 0) {
             minRank = 1;
             maxRank = 36;
@@ -730,14 +772,12 @@
     });
 
     const initRanks = () => {
-        // 为创建表单的段位下拉增加“不限段位”选项
         ['minRank','maxRank'].forEach(id => {
             const sel = document.getElementById(id);
             if (!sel) return;
             sel.innerHTML = '<option value="0">不限段位</option>';
             RANKS.forEach(r => sel.add(new Option(r.label, r.value)));
         });
-        // 其他段位下拉保持不变（筛选/设置不要不限段位，因为设置必须选段位）
         ['filterRank','settingsRank'].forEach(id => {
             const sel = document.getElementById(id);
             if (!sel) return;
